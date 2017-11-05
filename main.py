@@ -1,7 +1,7 @@
 import json, requests, polyline
 import pandas as pd
 import numpy as np
-import databaseAPI
+# import databaseAPI
 from multiprocessing import Pool
 import sys
 
@@ -142,13 +142,21 @@ def first_rain(df):
     return pd.DataFrame(res)
 
 
+def drive(start, end):
+    df_full = fetch_coords(start, end)
+    df_nondup = fetch_city_weather(df_full)
+    df_nondup['RainAlert'] = first_rain(df_nondup)
+    return df_full, df_nondup
+
+
 def main(start, end):
+    instance_key = ""
     df_full = fetch_coords(start, end)
     df_nondup = fetch_city_weather(df_full)
     df_nondup['RainAlert'] = first_rain(df_nondup)
     urls = get_images_url(fetch_images_info(df_full.loc[0]['Key']))
-    print(urls)
-    instance_key = dump(start, end, df_full, df_nondup, urls)
+    # print(urls)
+    # instance_key = dump(start, end, df_full, df_nondup, urls)
     return instance_key
 
 
