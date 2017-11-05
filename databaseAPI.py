@@ -18,13 +18,15 @@ cursor = db.cursor()
 """
     inserts a new entry into the mapinstances table in the maindb with startloc and endloc
 """
-def insertmapinstance(startloc, endloc):
+def insertmapinstance(startloc, startLat, startLon, endloc, endLat, endLon, imageURL):
     instancekey = ""
     try:
-        cursor.execute("insert into mapInstances(startloc, endloc) values ('%s', '%s')" % (startloc, endloc))
+        cursor.execute("insert into mapInstances (startLoc, startLatitude, startLongitude, endLoc, endLatitude, endLongitude) values ('%s', '%s', '%s', '%s', '%s', '%s')" % (startloc, startLat, startLon, endloc, endLat, endLon))
         db.commit()
         cursor.execute("select max(instancekey) from mapInstances")
         instancekey = cursor.fetchone()[0]
+        cursor.execute("insert into radarInstance (instanceKey, radarImage) values ('%s', '%s')" % (instancekey, imageURL))
+        db.commit()
     except Exception as e:
         print(e)
         db.rollback()
@@ -45,8 +47,9 @@ def insertroutelocation(instancekey, latitude, longitude, cityname, temp, timeof
 """
     inserts the route information into the database and returns the instance key for the route
 """
-def insert(startloc, endloc, table):
-    instancekey = insertmapinstance(startloc, endloc)
+def insert(startloc, startLat, startLon, endloc, endLat, endLon, imageURL, table):
+    instancekey = insertmapinstance(startloc, startLat, startLon, endloc, endLat, endLon, imageURL)
+    print("InstanceKey", instancekey)
     for item in table:
         insertroutelocation(instancekey, *item)
     db.close()
