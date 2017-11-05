@@ -1,7 +1,9 @@
 import json, requests, polyline
 import pandas as pd
 import numpy as np
+import databaseAPI
 from multiprocessing import Pool
+import sys
 
 
 def fetch_route(start="State+College,PA", end="New+York,NY"):
@@ -104,7 +106,7 @@ def fetch_city_weather(df_full):
     df_weather = pd.DataFrame(hourweathers)
     df_weather = df_weather[['DateTime', 'EpochDateTime', 'IconPhrase', 'PrecipitationProbability', 'Temperature', 'WeatherIcon']]
     # print(df_weather)
-    df_weather['Temperature'] = [x['Value'] for x in df_weather['Temperature']]
+    df_weather['Temperature'] = [int(x['Value']) for x in df_weather['Temperature']]
     precip = [12,13,14,15,16,17,18,19,20,21,22,23,25,26,29,39,40,41,42,43,44]
     df_weather['Precipitation'] = (df_weather['WeatherIcon'].isin(precip))
 
@@ -112,7 +114,21 @@ def fetch_city_weather(df_full):
     # print (df_nondup)
     return df_nondup
 
-#
+
+def fetch_images_info(key):
+    url = "http://dataservice.accuweather.com/imagery/v1/maps/radsat/1024x1024/%s?apikey=HackPSU2017&detail=true" % key
+    resp = requests.get(url=url)
+    data = json.loads(resp.text)
+    return data
+
+
+def get_images_url(json):
+    imgs = json['Radar']['Images']
+    urls = []
+    for image in imgs:
+        urls.append(image['Url'])
+    return urls
+
 def first_rain(df):
     res = []
     for index, row in df.iterrows():
@@ -130,16 +146,34 @@ def main(start, end):
     df_full = fetch_coords(start, end)
     df_nondup = fetch_city_weather(df_full)
     df_nondup['RainAlert'] = first_rain(df_nondup)
-    return df_full, df_nondup
+    urls = get_images_url(fetch_images_info(df_full.loc[0]['Key']))
+    print(urls)
+    instance_key = dump(start, end, df_full, df_nondup, urls)
+    return instance_key
 
 
-def dump(df):
-    # dump into database
+def dump(start, end, df_full, df_nondup, urls):
+    startloc = df_full.loc[0][['lat', 'lon']]
+    endloc = df_full.loc[-1][['lat', 'lon']]
+    df = df_nondup[['lat', 'lon', 'EnglishName', 'Temperature', 'DateTime', 'PrecipitationProbability', 'WeatherIcon', 'Precipitation', 'RainAlert']]
+    df['Precipitation'] = df['Precipitation'].astype(int)
+    df['RainAlert'] = df['RainAlert'].astype(int)
+    table = []
+    for i, row in df.iterrows():
+        table.append(list(row))
+    # print(table)
+    instance_key = databaseAPI.insert(start, startloc['lat'], startloc['lon'],
+                                      end, endloc['lat'], endloc['lon'], urls[0], table)
     return instance_key
 
 
 if __name__ == "__main__":
-    start = "State College,PA"
-    end = "New York, NY"
-    df_full, df_nondup = fetch_city_weather(start, end)
-    df_nondup['RainAlert'] = first_rain(df_nondup)
+    start = sys.argv[1]
+    end = sys.argv[2]
+    if len(start) == 0:
+        start = "State College,PA"
+    if len(end) == 0:
+        end = "New York"
+
+    print(main(start, end))
+    sys.stdout.flush()
