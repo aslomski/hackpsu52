@@ -36,7 +36,7 @@ def get_locationname(locationinfo):
 
 
 def fetch_weather(key):
-    url = "http://dataservice.accuweather.com/forecasts/v1/hourly/1hour/%s?apikey=HackPSU2017&detail=true" % key
+    url = "http://dataservice.accuweather.com/forecasts/v1/hourly/12hour/%s?apikey=HackPSU2017&detail=true" % key
     resp = requests.get(url=url)
     data = json.loads(resp.text)
     return data
@@ -64,7 +64,8 @@ def remove_duplicate(list):
 
 
 def fetch_coords(start, end):
-    poly = get_polyline(fetch_route(start, end))['points']
+    route = fetch_route(start, end)
+    poly = get_polyline(route)['points']
     fullpoints = decode(poly)
 
     pool = Pool(8)
@@ -73,6 +74,18 @@ def fetch_coords(start, end):
     df = pd.DataFrame(fullpoints)
     df.columns = ('lat', 'lon')
     df_full = pd.concat([df, df_name], axis = 1)
+
+    time_series = pd.Series([np.nan for x in range(len(df_full))])
+    time_series[0] = 0
+    totaltime = parse(route)
+    if not totaltime > 0:
+        totaltime = 0
+    time_series[len(time_series) - 1] = totaltime
+    time_series = time_series/3600
+    time_series = time_series.interpolate()
+    time_series = time_series.apply(int)
+    df_full['time_offset'] = time_series
+
     return df_full
 
 def fetch_city_weather(df_full):
@@ -82,8 +95,14 @@ def fetch_city_weather(df_full):
 
     pool = Pool(8)
     weathers = pool.map(fetch_weather, keys)
-    weathers = [x[0] for x in weathers]
-    df_weather = pd.DataFrame(weathers)[['DateTime', 'EpochDateTime', 'IconPhrase', 'PrecipitationProbability', 'Temperature', 'WeatherIcon']]
+    offsets = list(df_nondup['time_offset'])
+    hourweathers = []
+    for (offset, weather) in zip(offsets, weathers):
+        if (offset < 0) or (offset > 11):
+            offset = 0
+        hourweathers.append(weather[offset])
+    df_weather = pd.DataFrame(hourweathers)
+    df_weather = df_weather[['DateTime', 'EpochDateTime', 'IconPhrase', 'PrecipitationProbability', 'Temperature', 'WeatherIcon']]
     # print(df_weather)
     df_weather['Temperature'] = [x['Value'] for x in df_weather['Temperature']]
     precip = [12,13,14,15,16,17,18,19,20,21,22,23,25,26,29,39,40,41,42,43,44]
