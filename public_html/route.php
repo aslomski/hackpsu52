@@ -91,6 +91,8 @@
 
     var originString = <?php echo $_POST["inputDestination"]; ?>;
     var destinationString = <?php echo $_POST["inputStart"]; ?>;
+    originString.replace(/\s/g, '+');
+    destinationString.replace(/\s/g, '+');
 
     <?php
     $descriptorspec = array(
@@ -111,14 +113,63 @@
     } else {
         echo "No resource availeble";
     }
+
+    $instanceKeyReturn = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+
     ?>
+
+    <?php
+    $servername = "aa4wkh4lrsd01w.cui8zwjstn9r.us-west-2.rds.amazonaws.com";
+    $username = "admin";
+    $password = "masterpass";
+    $dbname = "mainDB";
+
+    // Create connection
+    $conn = new mysqli($servername, $username, $password, $dbname);
+    // Check connection
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
+
+    $sql = "SELECT id, firstname, lastname FROM MyGuests";
+    $result = $conn->query($sql);
+
+    ?>
+
+    var destinationLat = <?php
+        $sql = "SELECT endLatitude FROM mapInstances WHERE instanceKey = $instanceKeyReturn";
+        $destination = $conn->query($sql);
+        echo $destination;
+    ?>;
+    var destinationLon = <?php
+        $sql = "SELECT endLongitude FROM mapInstances WHERE instanceKey = $instanceKeyReturn";
+        $destination = $conn->query($sql);
+        echo $destination;
+        ?>;
+    var originLat = <?php
+        $sql = "SELECT startLatitude FROM mapInstances WHERE instanceKey = $instanceKeyReturn";
+        $destination = $conn->query($sql);
+        echo $destination;
+        ?>;
+    var originLon = <?php
+        $sql = "SELECT startLongitude FROM mapInstances WHERE instanceKey = $instanceKeyReturn";
+        $destination = $conn->query($sql);
+        echo $destination;
+        ?>;
+
+
+
 
 function initMap() {
         var directionsDisplay = new google.maps.DirectionsRenderer;
         var directionsService = new google.maps.DirectionsService;
+        var maps_origin = new google.maps.LatLng(originLat, originLon);
+        var maps_dest = new google.maps.LatLng(destinationLat, destinationLon);
+
         var map = new google.maps.Map(document.getElementById('map'), {
             zoom: 14,
-            center: {lat: 37.77, lng: -122.447}
+            center: {lat: originLat, lng: originLon}
         });
         directionsDisplay.setMap(map);
 
@@ -130,9 +181,11 @@ function initMap() {
 
     function calculateAndDisplayRoute(directionsService, directionsDisplay) {
         var selectedMode = "DRIVING"
+        var maps_origin = new google.maps.LatLng(originLat, originLon);
+        var maps_dest = new google.maps.LatLng(destinationLat, destinationLon);
         directionsService.route({
-            origin: {originString},  // Haight.
-            destination: {destinationString},  // Ocean Beach.
+            origin: {maps_origin},  // Haight.
+            destination: {maps_dest},  // Ocean Beach.
             // Note that Javascript allows us to access the constant
             // using square brackets and a string value as its
             // "property."
