@@ -1,0 +1,1 @@
+$config->content_directory = $_SERVER['DOCUMENT_ROOT'] . "/../includes/page_content/";
