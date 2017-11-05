@@ -154,7 +154,7 @@ def main(start, end):
 
 def dump(start, end, df_full, df_nondup, urls):
     startloc = df_full.loc[0][['lat', 'lon']]
-    endloc = df_full.loc[-1][['lat', 'lon']]
+    endloc = df_full.loc[len(df_full)-1][['lat', 'lon']]
     df = df_nondup[['lat', 'lon', 'EnglishName', 'Temperature', 'DateTime', 'PrecipitationProbability', 'WeatherIcon', 'Precipitation', 'RainAlert']]
     df['Precipitation'] = df['Precipitation'].astype(int)
     df['RainAlert'] = df['RainAlert'].astype(int)
